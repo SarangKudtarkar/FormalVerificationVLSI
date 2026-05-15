@@ -2,23 +2,18 @@ module arbiter (
     input clk,
     input rst,
     input [1:0] req,
-    output reg [1:0] gnt
+    input [7:0] data0, // Data from User 0
+    input [7:0] data1, // Data from User 1
+    output reg [1:0] gnt,
+    output [7:0] bus_out // Shared Data Bus
 );
 
-    reg deadlocked;
-
+    // Arbitration Logic (Fixed: No Deadlock, No Dual Grants)
     always @(posedge clk) begin
         if (rst) begin
             gnt <= 2'b00;
-            deadlocked <= 1'b0;
-        end else if (deadlocked) begin
-            gnt <= 2'b00; // Stuck here forever
         end else begin
-            if (req[0] && req[1]) begin
-                // DEADLOCK BUG: If both request at once, the system freezes
-                deadlocked <= 1'b1;
-                gnt <= 2'b00;
-            end else if (req[0]) begin
+            if (req[0]) begin
                 gnt <= 2'b01;
             end else if (req[1]) begin
                 gnt <= 2'b10;
@@ -27,5 +22,9 @@ module arbiter (
             end
         end
     end
+
+    // Data Path Logic
+    // If User 0 is granted, they own the bus. If no one is granted, bus is 0.
+    assign bus_out = gnt[0] ? data0 : (gnt[1] ? data1 : 8'h00);
 
 endmodule
